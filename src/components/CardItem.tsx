@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
-import { Card } from '../types/card';
-import { Volume2, RotateCw, Sparkles, Check, X } from 'lucide-react';
+import { Card, DisplayMode, AudioSpeed } from '../types/card';
+import { Volume2, RotateCw, Sparkles, Check, X, BookOpen } from 'lucide-react';
 
 interface CardItemProps {
   card: Card;
   onSwipe: (id: string, remembered: boolean) => void;
   active: boolean;
   stackIndex?: number;
+  audioSpeed?: AudioSpeed;
+  displayMode?: DisplayMode;
+  onOpenKanjiModal?: (card: Card) => void;
 }
 
 function isValidKanji(kanji?: string | null): boolean {
@@ -28,7 +31,7 @@ function isValidKanji(kanji?: string | null): boolean {
 }
 
 // Robust Japanese Audio Pronunciation Engine
-function playJapaneseAudio(rawText: string, onStateChange: (speaking: boolean) => void) {
+function playJapaneseAudio(rawText: string, onStateChange: (speaking: boolean) => void, speedRate: number = 0.85) {
   if (!rawText) return;
 
   // Clean text of non-Japanese artifacts, notes in parentheses, English letters, and stray symbols
@@ -49,7 +52,7 @@ function playJapaneseAudio(rawText: string, onStateChange: (speaking: boolean) =
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(targetText);
       utterance.lang = 'ja-JP';
-      utterance.rate = 0.85; // Natural learning speed
+      utterance.rate = speedRate; // Configurable learning speed (0.65 slow vs 0.85 normal)
 
       const voices = window.speechSynthesis.getVoices();
       const jaVoice = 
@@ -92,7 +95,15 @@ function fallbackAudioTTS(text: string, onStateChange: (speaking: boolean) => vo
   }
 }
 
-export function CardItem({ card, onSwipe, active, stackIndex = 0 }: CardItemProps) {
+export function CardItem({
+  card,
+  onSwipe,
+  active,
+  stackIndex = 0,
+  audioSpeed = 1.0,
+  displayMode = 'all',
+  onOpenKanjiModal
+}: CardItemProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const x = useMotionValue(0);
@@ -122,7 +133,8 @@ export function CardItem({ card, onSwipe, active, stackIndex = 0 }: CardItemProp
   // Function to pronounce Japanese word using Web Speech API with fallback
   const speakJapanese = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    playJapaneseAudio(displayReading || card.kanji || '', setIsSpeaking);
+    const rate = audioSpeed === 0.75 ? 0.65 : 0.85;
+    playJapaneseAudio(displayReading || card.kanji || '', setIsSpeaking, rate);
   };
 
   // Keyboard controls for active card
@@ -213,12 +225,29 @@ export function CardItem({ card, onSwipe, active, stackIndex = 0 }: CardItemProp
           </motion.div>
         )}
 
-        {/* Top Bar: Chapter badge & Audio Pronounce Button */}
+        {/* Top Bar: Chapter badge, Kanji Info Trigger & Audio Button */}
         <div className="w-full flex justify-between items-center z-10">
-          <span className="text-[11px] font-extrabold tracking-widest text-indigo-700 bg-indigo-50 px-3.5 py-1.5 rounded-full border border-indigo-200 flex items-center gap-1.5 shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-            CHAPTER {card.chapter}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-extrabold tracking-widest text-indigo-700 bg-indigo-50 px-3.5 py-1.5 rounded-full border border-indigo-200 flex items-center gap-1.5 shadow-sm">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              CHAPTER {card.chapter}
+            </span>
+
+            {/* Kanji Breakdown Button */}
+            {hasKanji && onOpenKanjiModal && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenKanjiModal(card);
+                }}
+                title="View Kanji breakdown details"
+                className="bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-full text-[11px] font-black flex items-center gap-1 active:scale-95 transition shadow-sm"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-purple-600" />
+                <span>KANJI INFO</span>
+              </button>
+            )}
+          </div>
 
           <button
             onClick={speakJapanese}
@@ -243,9 +272,17 @@ export function CardItem({ card, onSwipe, active, stackIndex = 0 }: CardItemProp
               }`}>
                 {card.kanji}
               </h2>
-              <div className="text-lg md:text-2xl font-extrabold text-indigo-600 bg-indigo-50/90 px-5 py-2 rounded-2xl border border-indigo-200/80 shadow-sm flex items-center justify-center gap-2 text-center max-w-full">
-                <span>{displayReading}</span>
-              </div>
+              
+              {/* If kanji-only mode is active, hide hiragana reading on front card until flip */}
+              {displayMode !== 'kanji-only' ? (
+                <div className="text-lg md:text-2xl font-extrabold text-indigo-600 bg-indigo-50/90 px-5 py-2 rounded-2xl border border-indigo-200/80 shadow-sm flex items-center justify-center gap-2 text-center max-w-full">
+                  <span>{displayReading}</span>
+                </div>
+              ) : (
+                <div className="text-xs font-extrabold text-slate-400 bg-slate-100 px-4 py-1.5 rounded-xl border border-slate-200">
+                  (Reading Hidden • Tap to Flip)
+                </div>
+              )}
             </>
           ) : (
             <h2 className={`font-black text-indigo-600 mb-2 tracking-tight drop-shadow-sm text-center leading-tight ${

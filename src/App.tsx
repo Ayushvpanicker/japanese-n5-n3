@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import { CardItem } from './components/CardItem';
 import { MemeSticker, MemeData } from './components/MemeSticker';
+import { KanjiModal } from './components/KanjiModal';
+import { SpeedQuiz } from './components/SpeedQuiz';
+import { KanjiDrawPractice } from './components/KanjiDrawPractice';
 import { fetchCardsByChapter, fetchAvailableChapters } from './lib/supabase';
-import { Card } from './types/card';
+import { Card, DisplayMode, AudioSpeed } from './types/card';
+import { MOCK_CARDS } from './data/mockCards';
 import confetti from 'canvas-confetti';
-import { Flame, Sparkles, Trophy, ArrowLeft, BookOpen, CheckCircle2, XCircle, RefreshCw, Smile, Shuffle } from 'lucide-react';
+import { Flame, Sparkles, Trophy, ArrowLeft, BookOpen, CheckCircle2, XCircle, RefreshCw, Smile, Shuffle, SlidersHorizontal, Zap, Eye, Volume2 } from 'lucide-react';
 
 // Fisher-Yates Deck Randomizer Algorithm
 function shuffleArray<T>(array: T[]): T[] {
@@ -76,13 +80,24 @@ export default function App() {
   const [availableChapters, setAvailableChapters] = useState<number[]>(
     Array.from({ length: 50 }, (_, i) => i + 1)
   );
+  const [activeView, setActiveView] = useState<'home' | 'deck' | 'speedQuiz' | 'weakDeck' | 'learnKanji'>('home');
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [initialCount, setInitialCount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [score, setScore] = useState({ remembered: 0, review: 0 });
 
-  // Gamification & Meme state
+  // Weak Words SRS State (Persistent in localStorage)
+  const [weakCards, setWeakCards] = useState<Card[]>(() => {
+    try {
+      const saved = localStorage.getItem('japanese_weak_cards');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Gamification, Meme & Preference State
   const [streak, setStreak] = useState(0);
   const [failStreak, setFailStreak] = useState(0);
   const [xp, setXp] = useState(0);
@@ -91,6 +106,21 @@ export default function App() {
   const [activeMeme, setActiveMeme] = useState<MemeData | null>(null);
   const [memeMode, setMemeMode] = useState(true);
   const [shownMemes, setShownMemes] = useState<Set<string>>(new Set());
+  const [randomizerChapter, setRandomizerChapter] = useState<number | 'any'>('any');
+
+  // New Preferences: Audio Speed & Display Mode
+  const [audioSpeed, setAudioSpeed] = useState<AudioSpeed>(1.0);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('all');
+  const [activeKanjiCard, setActiveKanjiCard] = useState<Card | null>(null);
+
+  // Sync weakCards to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('japanese_weak_cards', JSON.stringify(weakCards));
+    } catch (err) {
+      console.error('Failed to save weak cards to localStorage:', err);
+    }
+  }, [weakCards]);
 
   useEffect(() => {
     async function loadChapters() {
@@ -102,6 +132,15 @@ export default function App() {
     loadChapters();
   }, []);
 
+  const addWeakCard = (swipedCard: Card) => {
+    setWeakCards(prev => {
+      if (prev.some(c => c.id === swipedCard.id || (c.kanji === swipedCard.kanji && c.reading === swipedCard.reading))) {
+        return prev;
+      }
+      return [swipedCard, ...prev];
+    });
+  };
+
   const loadChapter = async (chapter: number) => {
     setLoading(true);
     const fetchedCards = await fetchCardsByChapter(chapter);
@@ -109,12 +148,25 @@ export default function App() {
     setCards(randomizedCards);
     setInitialCount(randomizedCards.length);
     setSelectedChapter(chapter);
+    setActiveView('deck');
     setScore({ remembered: 0, review: 0 });
     setStreak(0);
     setFailStreak(0);
     setActiveMeme(null);
     setShownMemes(new Set());
     setLoading(false);
+  };
+
+  const startWeakDeck = () => {
+    if (weakCards.length === 0) return;
+    const randomizedWeak = shuffleArray(weakCards);
+    setCards(randomizedWeak);
+    setInitialCount(randomizedWeak.length);
+    setSelectedChapter(999);
+    setActiveView('weakDeck');
+    setScore({ remembered: 0, review: 0 });
+    setStreak(0);
+    setFailStreak(0);
   };
 
   const triggerNextUnshownMeme = (type: 'success' | 'fail') => {
@@ -161,6 +213,12 @@ export default function App() {
       setStreak(0);
       setScore(prev => ({ ...prev, review: prev.review + 1 }));
 
+      // Save card to Weak Words SRS Deck
+      const currentSwipedCard = cards.find(c => c.id === id);
+      if (currentSwipedCard) {
+        addWeakCard(currentSwipedCard);
+      }
+
       // Meme Trigger on 2nd, 3rd, 5th wrong swipes, only if NOT shown yet
       if (newFail === 2 || newFail === 3 || newFail === 5 || newFail === 8) {
         triggerNextUnshownMeme('fail');
@@ -185,6 +243,20 @@ export default function App() {
     return true;
   });
 
+  const startRandomChapter = () => {
+    let targetCh: number;
+    if (randomizerChapter === 'any') {
+      const pool = filteredChapters.length > 0 ? filteredChapters : availableChapters;
+      if (pool.length === 0) return;
+      targetCh = pool[Math.floor(Math.random() * pool.length)];
+      triggerCombo(`🎲 Surprise Chapter ${targetCh} Loaded (Shuffled)!`);
+    } else {
+      targetCh = randomizerChapter;
+      triggerCombo(`🔀 Chapter ${targetCh} Loaded in Random Order!`);
+    }
+    loadChapter(targetCh);
+  };
+
   return (
     <div className="relative min-h-[100dvh] bg-transparent flex flex-col items-center justify-between p-4 overflow-hidden select-none font-sans text-slate-900">
       
@@ -192,15 +264,64 @@ export default function App() {
       <div className="absolute top-[-10%] left-[-10%] w-[550px] h-[550px] bg-pink-300/30 rounded-full mix-blend-multiply filter blur-[140px] animate-pulse"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-300/25 rounded-full mix-blend-multiply filter blur-[130px] animate-pulse" style={{ animationDelay: '2s' }}></div>
 
-      {/* --- TOP APP HEADER (TOTAL XP, STREAK & MEME TOGGLE) --- */}
-      <header className="z-20 w-full max-w-4xl flex justify-between items-center py-3 px-2">
+      {/* --- TOP APP HEADER (XP, STREAK, DISPLAY MODE, AUDIO SPEED & MEME TOGGLE) --- */}
+      <header className="z-20 w-full max-w-4xl flex justify-between items-center py-3 px-2 gap-2 flex-wrap sm:flex-nowrap">
         <div className="flex items-center gap-2">
-          <div className="bg-white/90 border border-slate-200/80 p-2.5 rounded-2xl flex items-center gap-2 shadow-sm backdrop-blur-md">
+          <button
+            onClick={() => {
+              setActiveView('home');
+              setSelectedChapter(null);
+            }}
+            className="bg-white/90 border border-slate-200/80 p-2.5 rounded-2xl flex items-center gap-2 shadow-sm backdrop-blur-md hover:bg-white active:scale-95 transition"
+          >
             <Sparkles className="w-5 h-5 text-indigo-600 animate-spin" style={{ animationDuration: '8s' }} />
             <span className="text-xs font-black tracking-widest text-indigo-900 uppercase">JLPT MASTER</span>
-          </div>
+          </button>
 
-          {/* Meme Mode Toggle */}
+          {/* Learn Kanji Section Launch Button */}
+          <button
+            onClick={() => {
+              setActiveView('learnKanji');
+              setSelectedChapter(null);
+            }}
+            title="Open Duolingo-style Kanji Drawing Practice"
+            className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white px-3.5 py-2 rounded-2xl text-xs font-black shadow-md hover:shadow-lg active:scale-95 transition flex items-center gap-1.5 border border-white/30"
+          >
+            <span>✍️</span>
+            <span className="hidden md:inline">DRAW KANJI</span>
+          </button>
+
+          {/* Display Mode Toggle (Kanji + Reading vs Kanji Only) */}
+          <button
+            onClick={() => setDisplayMode(prev => prev === 'all' ? 'kanji-only' : 'all')}
+            title="Toggle Kanji Reading visibility on front card"
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-black transition-all border shadow-sm backdrop-blur-md ${
+              displayMode === 'kanji-only'
+                ? 'bg-purple-600 text-white border-purple-700 shadow-purple-500/30'
+                : 'bg-white/80 text-slate-700 border-slate-200 hover:text-slate-900'
+            }`}
+          >
+            <Eye className="w-4 h-4" />
+            <span className="hidden sm:inline">{displayMode === 'kanji-only' ? 'KANJI ONLY' : 'ALL READINGS'}</span>
+          </button>
+
+          {/* Audio Speed Toggle (1.0x vs 0.75x Slow) */}
+          <button
+            onClick={() => setAudioSpeed(prev => prev === 1.0 ? 0.75 : 1.0)}
+            title="Toggle audio pronunciation speed"
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-black transition-all border shadow-sm backdrop-blur-md ${
+              audioSpeed === 0.75
+                ? 'bg-amber-500 text-white border-amber-600 shadow-amber-500/30'
+                : 'bg-white/80 text-slate-700 border-slate-200 hover:text-slate-900'
+            }`}
+          >
+            <Volume2 className="w-4 h-4" />
+            <span>{audioSpeed === 0.75 ? '0.75x SLOW' : '1.0x FAST'}</span>
+          </button>
+        </div>
+
+        {/* XP, Streak & Meme Toggle */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setMemeMode(!memeMode)}
             title="Toggle Instagram Meme Reactions"
@@ -213,10 +334,7 @@ export default function App() {
             <Smile className="w-4 h-4" />
             <span>MEMES {memeMode ? 'ON' : 'OFF'}</span>
           </button>
-        </div>
 
-        {/* XP & Streak Pills */}
-        <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-1.5 bg-amber-500/15 border border-amber-500/30 px-3.5 py-1.5 rounded-full shadow-sm backdrop-blur-md">
             <Trophy className="w-4 h-4 text-amber-600" />
             <span className="text-xs font-black text-amber-900">{xp} XP</span>
@@ -242,12 +360,41 @@ export default function App() {
         {/* Meme Sticker Popup */}
         <MemeSticker meme={activeMeme} onClose={() => setActiveMeme(null)} />
 
-        {selectedChapter === null ? (
+        {/* Kanji Breakdown Modal */}
+        {activeKanjiCard && (
+          <KanjiModal
+            word={activeKanjiCard.kanji}
+            reading={activeKanjiCard.reading}
+            meaning={activeKanjiCard.meaning}
+            onClose={() => setActiveKanjiCard(null)}
+          />
+        )}
+
+        {activeView === 'learnKanji' ? (
+          /* ==================== DUOLINGO-STYLE KANJI DRAW PRACTICE ==================== */
+          <KanjiDrawPractice
+            onClose={() => {
+              setActiveView('home');
+              setSelectedChapter(null);
+            }}
+            onAddXp={(amount) => setXp(prev => prev + amount)}
+          />
+        ) : activeView === 'speedQuiz' ? (
+          /* ==================== 60-SEC SPEED BLITZ QUIZ VIEW ==================== */
+          <SpeedQuiz
+            cardPool={MOCK_CARDS}
+            onClose={() => {
+              setActiveView('home');
+              setSelectedChapter(null);
+            }}
+            onAddWeakCard={addWeakCard}
+          />
+        ) : activeView === 'home' || selectedChapter === null ? (
           // ==================== HOME MENU SCREEN (LIGHT MODE) ====================
           <div className="w-full flex flex-col items-center max-w-3xl animate-in zoom-in-95 duration-400">
             
             {/* Title Section */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-6">
               <h1 className="text-4xl md:text-6xl font-black mb-3 tracking-tight text-gradient-japan drop-shadow-sm">
                 Minna no Nihongo
               </h1>
@@ -256,8 +403,115 @@ export default function App() {
               </p>
             </div>
 
+            {/* DEDICATED DUOLINGO KANJI DRAW PRACTICE BANNER */}
+            <div className="w-full max-w-lg mb-4">
+              <button
+                onClick={() => setActiveView('learnKanji')}
+                className="w-full p-4.5 rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-black border border-indigo-300 shadow-xl hover:shadow-2xl transition-all active:scale-95 flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-black shadow-inner">
+                    ✍️
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black uppercase tracking-wider text-pink-200">DUOLINGO STYLE</span>
+                      <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-full text-white uppercase">310 KANJI</span>
+                    </div>
+                    <span className="text-lg font-black tracking-tight">LEARN TO DRAW KANJI</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 bg-white/20 px-4 py-2 rounded-2xl text-xs font-black tracking-wider group-hover:translate-x-1 transition-transform">
+                  <span>PRACTICE NOW</span>
+                  <span>→</span>
+                </div>
+              </button>
+            </div>
+
+            {/* QUICK LAUNCH ACTION BUTTONS: WEAK WORDS SRS + 60s SPEED BLITZ */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mb-4">
+              {/* Weak Words SRS Deck Launch */}
+              <button
+                onClick={startWeakDeck}
+                disabled={weakCards.length === 0}
+                className={`p-4 rounded-3xl font-black transition-all flex items-center justify-between border shadow-lg ${
+                  weakCards.length > 0
+                    ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white border-rose-300 hover:shadow-xl active:scale-95'
+                    : 'bg-white/60 text-slate-400 border-slate-200 cursor-not-allowed'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white">
+                    <Flame className="w-6 h-6" />
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-black uppercase tracking-wider">WEAK WORDS DECK</span>
+                    <span className="text-sm font-extrabold opacity-95">
+                      {weakCards.length > 0 ? `${weakCards.length} Missed Words` : 'No Missed Words Yet!'}
+                    </span>
+                  </div>
+                </div>
+                {weakCards.length > 0 && <span className="text-xs font-black bg-white/20 px-3 py-1 rounded-full">STUDY →</span>}
+              </button>
+
+              {/* 60s Speed Quiz Blitz Launch */}
+              <button
+                onClick={() => setActiveView('speedQuiz')}
+                className="p-4 rounded-3xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black hover:from-amber-600 hover:to-orange-600 border border-amber-300 shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white">
+                    <Zap className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-black uppercase tracking-wider">SPEED BLITZ QUIZ</span>
+                    <span className="text-sm font-extrabold opacity-95">60-Sec Challenge</span>
+                  </div>
+                </div>
+                <span className="text-xs font-black bg-white/20 px-3 py-1 rounded-full">PLAY ⚡</span>
+              </button>
+            </div>
+
+            {/* Dedicated Chapter Randomizer Control Panel */}
+            <div className="w-full max-w-lg mb-6 glass-panel p-4 rounded-3xl border border-indigo-200/80 shadow-lg backdrop-blur-xl flex flex-col items-center gap-3 text-center">
+              <div className="flex items-center gap-2 text-indigo-900 font-black text-xs uppercase tracking-widest">
+                <Shuffle className="w-4 h-4 text-indigo-600 animate-spin" style={{ animationDuration: '8s' }} />
+                <span>CHAPTER DECK RANDOMIZER</span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+                {/* Chapter Select Dropdown for Randomizer */}
+                <div className="relative w-full sm:w-1/2">
+                  <select
+                    value={randomizerChapter}
+                    onChange={(e) => setRandomizerChapter(e.target.value === 'any' ? 'any' : Number(e.target.value))}
+                    className="w-full bg-white/90 border border-indigo-200 text-slate-800 font-extrabold text-xs py-3 px-4 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+                  >
+                    <option value="any">🎲 Any Chapter (Surprise Me)</option>
+                    {filteredChapters.map(ch => (
+                      <option key={ch} value={ch}>
+                        Chapter {ch} {ch >= 26 ? '(JLPT N4)' : '(JLPT N5)'}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-indigo-500">
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+
+                {/* Start Randomized Deck Button */}
+                <button
+                  onClick={startRandomChapter}
+                  className="w-full sm:w-1/2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-black py-3 px-4 rounded-2xl shadow-md hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 text-xs tracking-wider uppercase border border-white/30"
+                >
+                  <Shuffle className="w-4 h-4" />
+                  <span>START RANDOMIZED →</span>
+                </button>
+              </div>
+            </div>
+
             {/* Level Filter Tabs (All / N5 / N4) */}
-            <div className="flex bg-white/90 p-1.5 rounded-2xl border border-slate-200/80 mb-8 shadow-md backdrop-blur-md">
+            <div className="flex bg-white/90 p-1.5 rounded-2xl border border-slate-200/80 mb-6 shadow-md backdrop-blur-md">
               <button
                 onClick={() => setLevelFilter('all')}
                 className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${
@@ -406,6 +660,9 @@ export default function App() {
                       onSwipe={handleSwipe} 
                       active={isTop} 
                       stackIndex={stackOffset}
+                      audioSpeed={audioSpeed}
+                      displayMode={displayMode}
+                      onOpenKanjiModal={(c) => setActiveKanjiCard(c)}
                     />
                   );
                 })

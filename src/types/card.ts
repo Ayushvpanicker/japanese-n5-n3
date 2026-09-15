@@ -6,3 +6,6 @@ export interface Card {
   meaning: string;
   notes: string | null;
 }
+
+export type DisplayMode = 'all' | 'kanji-only' | 'reading-only';
+export type AudioSpeed = 0.75 | 1.0;
