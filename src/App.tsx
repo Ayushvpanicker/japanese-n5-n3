@@ -374,14 +374,19 @@ export default function App() {
                   <div className="text-slate-800 font-bold text-sm">Loading Chapter Deck...</div>
                 </div>
               ) : cards.length > 0 ? (
-                cards.map((card, index) => (
-                  <CardItem 
-                    key={card.id} 
-                    card={card} 
-                    onSwipe={handleSwipe} 
-                    active={index === cards.length - 1} 
-                  />
-                ))
+                cards.slice(-3).map((card, index, array) => {
+                  const isTop = index === array.length - 1;
+                  const stackOffset = array.length - 1 - index;
+                  return (
+                    <CardItem 
+                      key={card.id} 
+                      card={card} 
+                      onSwipe={handleSwipe} 
+                      active={isTop} 
+                      stackIndex={stackOffset}
+                    />
+                  );
+                })
               ) : (
                 /* DECK COMPLETE SCREEN */
                 <div className="w-full h-full flex flex-col items-center justify-center glass-panel rounded-[2.5rem] shadow-2xl border border-slate-200 p-8 text-center animate-in zoom-in-95 duration-500">
