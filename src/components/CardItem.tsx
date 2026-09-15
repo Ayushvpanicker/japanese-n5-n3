@@ -20,16 +20,38 @@ export function CardItem({ card, onSwipe, active }: CardItemProps) {
   const greenOpacity = useTransform(x, [10, 80, 180], [0, 0.5, 1]);
   const redOpacity = useTransform(x, [-180, -80, -10], [1, 0.5, 0]);
 
-  // Function to pronounce Japanese word using Web Speech API
+  // Function to pronounce Japanese word using Web Speech API with native voice selection
   const speakJapanese = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!('speechSynthesis' in window)) return;
 
     window.speechSynthesis.cancel();
-    const textToSpeak = card.kanji || card.reading;
+
+    // Prefer Hiragana reading cleaned of punctuation/commas for 100% accurate pitch accent pronunciation
+    const cleanReading = (card.reading || '')
+      .split(/[,、\/]/)[0]
+      .replace(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\s〜・]/g, '')
+      .trim();
+
+    const cleanKanji = (card.kanji || '')
+      .split(/[,、\/]/)[0]
+      .trim();
+
+    const textToSpeak = cleanReading || cleanKanji;
+    if (!textToSpeak) return;
+
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utterance.lang = 'ja-JP';
-    utterance.rate = 0.9;
+    utterance.rate = 0.85; // Optimal learning pace
+
+    // Select native Japanese voice if available in browser
+    const voices = window.speechSynthesis.getVoices();
+    const jaVoice = voices.find(v => v.lang === 'ja-JP' || v.lang.startsWith('ja')) ||
+                    voices.find(v => v.name.includes('Japanese') || v.name.includes('日本語'));
+
+    if (jaVoice) {
+      utterance.voice = jaVoice;
+    }
 
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
