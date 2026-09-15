@@ -1,23 +1,85 @@
 import { useState, useEffect } from 'react';
 import { CardItem } from './components/CardItem';
+import { MemeSticker, MemeData } from './components/MemeSticker';
 import { fetchCardsByChapter, fetchAvailableChapters } from './lib/supabase';
 import { Card } from './types/card';
 import confetti from 'canvas-confetti';
-import { Flame, Sparkles, Trophy, ArrowLeft, BookOpen, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { Flame, Sparkles, Trophy, ArrowLeft, BookOpen, CheckCircle2, XCircle, RefreshCw, Smile } from 'lucide-react';
+
+// Exact User Provided GIPHY Meme Stickers
+const MEME_STICKERS = {
+  success: [
+    {
+      id: 'meme_s1',
+      type: 'success' as const,
+      title: 'BRO IS COOKING! 🔥',
+      subtitle: '2 Streak! Keep up the momentum!',
+      gifUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZms2enFlY2Q3MXdvbTQ3YndjY2F5Z2R5amF4ZDVkYWhnOHF4cGt5eCZlcD12MV9zdGlja2Vyc19zZWFyY2gmY3Q9cw/X6hLfRgoJmWiF0i9Xr/giphy.gif',
+      badge: '2X STREAK 🔥',
+    },
+    {
+      id: 'meme_s2',
+      type: 'success' as const,
+      title: 'ABSOLUTE CHAD! 🗿',
+      subtitle: '3 Streak! Japanese Master energy!',
+      gifUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZms2enFlY2Q3MXdvbTQ3YndjY2F5Z2R5amF4ZDVkYWhnOHF4cGt5eCZlcD12MV9zdGlja2Vyc19zZWFyY2gmY3Q9cw/NMlz9mhcZUI1GDd40H/giphy.gif',
+      badge: '3X CHAD STREAK 🗿',
+    },
+    {
+      id: 'meme_s3',
+      type: 'success' as const,
+      title: 'GALAXY BRAIN UNLOCKED! 🧠',
+      subtitle: 'Unstoppable streak! Much vocabulary!',
+      gifUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZms2enFlY2Q3MXdvbTQ3YndjY2F5Z2R5amF4ZDVkYWhnOHF4cGt5eCZlcD12MV9zdGlja2Vyc19zZWFyY2gmY3Q9cw/H0Xp04QsacQ05zEo0A/giphy.gif',
+      badge: 'SUPER STREAK 🧠',
+    },
+  ],
+  fail: [
+    {
+      id: 'meme_f1',
+      type: 'fail' as const,
+      title: 'CHOTTO MATTE... 😿',
+      subtitle: '2 Mistakes! Don\'t worry, try again!',
+      gifUrl: 'https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3Zng2enZlbnE1dHRnaDA0YTlhOG5yOXppZG55cWdkankwaG1pN2ZnbCZlcD12MV9zdGlja2Vyc19zZWFyY2gmY3Q9cw/6fggXNqOuTm9lAb2Yu/giphy.gif',
+      badge: 'KEEP TRYING 😿',
+    },
+    {
+      id: 'meme_f2',
+      type: 'fail' as const,
+      title: 'EMOTIONAL DAMAGE! 💔',
+      subtitle: '3 Mistakes! Tap card to see reading!',
+      gifUrl: 'https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3ejlseDVpN2IwdDJlM3pqZno1MDUyNWllcTluYTNraHM0MDludXc4ZiZlcD12MV9zdGlja2Vyc19zZWFyY2gmY3Q9cw/RxtjuEgVX4rBoWihUa/giphy.gif',
+      badge: 'EMOTIONAL DAMAGE 💔',
+    },
+    {
+      id: 'meme_f3',
+      type: 'fail' as const,
+      title: 'SAD HAMSTER HOURS 🐹',
+      subtitle: 'Mistakes build strength! You got this!',
+      gifUrl: 'https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3eWh1Nzlsanp1ZHZhemtzY3VvdDFsbngxdHMxMzFyaGZxdG5jaWdmMCZlcD12MV9zdGlja2Vyc19zZWFyY2gmY3Q9cw/8bl86q2fSFG7bfZUlm/giphy.gif',
+      badge: 'STAY STRONG 🐹',
+    },
+  ],
+};
 
 export default function App() {
-  const [availableChapters, setAvailableChapters] = useState<number[]>([1, 2, 3, 4, 5, 26]);
+  const [availableChapters, setAvailableChapters] = useState<number[]>(
+    Array.from({ length: 50 }, (_, i) => i + 1)
+  );
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [initialCount, setInitialCount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [score, setScore] = useState({ remembered: 0, review: 0 });
 
-  // Gamification state
+  // Gamification & Meme state
   const [streak, setStreak] = useState(0);
+  const [failStreak, setFailStreak] = useState(0);
   const [xp, setXp] = useState(0);
   const [comboMessage, setComboMessage] = useState<string | null>(null);
   const [levelFilter, setLevelFilter] = useState<'all' | 'n5' | 'n4'>('all');
+  const [activeMeme, setActiveMeme] = useState<MemeData | null>(null);
+  const [memeMode, setMemeMode] = useState(true);
 
   useEffect(() => {
     async function loadChapters() {
@@ -37,6 +99,8 @@ export default function App() {
     setSelectedChapter(chapter);
     setScore({ remembered: 0, review: 0 });
     setStreak(0);
+    setFailStreak(0);
+    setActiveMeme(null);
     setLoading(false);
   };
 
@@ -44,9 +108,11 @@ export default function App() {
     if (remembered) {
       const newStreak = streak + 1;
       setStreak(newStreak);
+      setFailStreak(0);
       setXp(prev => prev + 10);
       setScore(prev => ({ ...prev, remembered: prev.remembered + 1 }));
 
+      // Combo Notifications & Confetti
       if (newStreak === 3) {
         triggerCombo('🔥 3 STREAK! +10 XP');
       } else if (newStreak === 5) {
@@ -56,9 +122,36 @@ export default function App() {
         triggerCombo('👑 10 STREAK! JAPANESE MASTER!');
         confetti({ particleCount: 150, spread: 100 });
       }
+
+      // Meme Trigger on 2 or 3 Rights (and cycling after)
+      if (memeMode) {
+        if (newStreak === 2) {
+          setActiveMeme({ ...MEME_STICKERS.success[0], id: 's1_' + Date.now() });
+        } else if (newStreak === 3) {
+          setActiveMeme({ ...MEME_STICKERS.success[1], id: 's2_' + Date.now() });
+        } else if (newStreak >= 5) {
+          const memeIndex = (newStreak % MEME_STICKERS.success.length);
+          setActiveMeme({ ...MEME_STICKERS.success[memeIndex], id: 's3_' + Date.now() });
+        }
+      }
     } else {
+      // Wrong Swipe Logic
+      const newFail = failStreak + 1;
+      setFailStreak(newFail);
       setStreak(0);
       setScore(prev => ({ ...prev, review: prev.review + 1 }));
+
+      // Meme Trigger on 2 or 3 Wrongs
+      if (memeMode) {
+        if (newFail === 2) {
+          setActiveMeme({ ...MEME_STICKERS.fail[0], id: 'f1_' + Date.now() });
+        } else if (newFail === 3) {
+          setActiveMeme({ ...MEME_STICKERS.fail[1], id: 'f2_' + Date.now() });
+        } else if (newFail >= 5) {
+          const memeIndex = (newFail % MEME_STICKERS.fail.length);
+          setActiveMeme({ ...MEME_STICKERS.fail[memeIndex], id: 'f3_' + Date.now() });
+        }
+      }
     }
 
     setCards(prev => prev.filter(c => c.id !== id));
@@ -86,17 +179,31 @@ export default function App() {
       <div className="absolute top-[-10%] left-[-10%] w-[550px] h-[550px] bg-pink-300/30 rounded-full mix-blend-multiply filter blur-[140px] animate-pulse"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-300/25 rounded-full mix-blend-multiply filter blur-[130px] animate-pulse" style={{ animationDelay: '2s' }}></div>
 
-      {/* --- TOP APP HEADER (TOTAL XP & STREAK) --- */}
+      {/* --- TOP APP HEADER (TOTAL XP, STREAK & MEME TOGGLE) --- */}
       <header className="z-20 w-full max-w-4xl flex justify-between items-center py-3 px-2">
         <div className="flex items-center gap-2">
           <div className="bg-white/90 border border-slate-200/80 p-2.5 rounded-2xl flex items-center gap-2 shadow-sm backdrop-blur-md">
             <Sparkles className="w-5 h-5 text-indigo-600 animate-spin" style={{ animationDuration: '8s' }} />
             <span className="text-xs font-black tracking-widest text-indigo-900 uppercase">JLPT MASTER</span>
           </div>
+
+          {/* Meme Mode Toggle */}
+          <button
+            onClick={() => setMemeMode(!memeMode)}
+            title="Toggle Instagram Meme Reactions"
+            className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-black transition-all border shadow-sm backdrop-blur-md ${
+              memeMode
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-300 scale-105'
+                : 'bg-white/80 text-slate-500 border-slate-200 hover:text-slate-800'
+            }`}
+          >
+            <Smile className="w-4 h-4" />
+            <span>MEMES {memeMode ? 'ON' : 'OFF'}</span>
+          </button>
         </div>
 
         {/* XP & Streak Pills */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-1.5 bg-amber-500/15 border border-amber-500/30 px-3.5 py-1.5 rounded-full shadow-sm backdrop-blur-md">
             <Trophy className="w-4 h-4 text-amber-600" />
             <span className="text-xs font-black text-amber-900">{xp} XP</span>
@@ -119,6 +226,9 @@ export default function App() {
           </div>
         )}
 
+        {/* Meme Sticker Popup */}
+        <MemeSticker meme={activeMeme} onClose={() => setActiveMeme(null)} />
+
         {selectedChapter === null ? (
           // ==================== HOME MENU SCREEN (LIGHT MODE) ====================
           <div className="w-full flex flex-col items-center max-w-3xl animate-in zoom-in-95 duration-400">
@@ -129,7 +239,7 @@ export default function App() {
                 Minna no Nihongo
               </h1>
               <p className="text-slate-600 text-sm md:text-base font-bold">
-                Master Japanese Vocabulary with Interactive 3D Flashcards
+                Master Japanese Vocabulary with Interactive 3D Flashcards & Memes
               </p>
             </div>
 
