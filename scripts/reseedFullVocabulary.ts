@@ -168,6 +168,9 @@ async function masterReseed() {
   fs.writeFileSync(mockPath, mockContent, 'utf-8');
   console.log(`\n💾 Saved updated master dataset to ${mockPath}`);
 
+  const { MOCK_CARDS } = await import('../src/data/mockCards');
+  console.log(`\n🎉 Total Cards in Dataset: ${MOCK_CARDS.length}`);
+
   // 4. Upload to Supabase database if connected
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
@@ -183,7 +186,7 @@ async function masterReseed() {
     const BATCH = 50;
 
     // Remove client string id when inserting to Supabase so it lets Supabase auto-generate UUIDs
-    const dbPayload = allCards.map(({ id, ...rest }) => rest);
+    const dbPayload = MOCK_CARDS.map(({ id, ...rest }) => rest);
 
     for (let i = 0; i < dbPayload.length; i += BATCH) {
       const batch = dbPayload.slice(i, i + BATCH);

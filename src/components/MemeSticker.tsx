@@ -31,19 +31,25 @@ export function MemeSticker({ meme, onClose }: MemeStickerProps) {
 
   return (
     <AnimatePresence>
+      {/* Backdrop overlay & centered modal container */}
       <motion.div
         key={meme.id + Date.now()}
-        initial={{ opacity: 0, scale: 0.5, y: 60, rotate: isSuccess ? -6 : 6 }}
-        animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
-        exit={{ opacity: 0, scale: 0.7, y: -40 }}
-        transition={{ type: 'spring', damping: 15, stiffness: 250 }}
-        className="fixed bottom-14 left-1/2 -translate-x-1/2 z-50 pointer-events-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm pointer-events-auto select-none"
       >
-        <div
-          className={`relative flex flex-col items-center p-4 rounded-3xl shadow-2xl border-4 backdrop-blur-xl max-w-xs sm:max-w-sm text-center ${
+        <motion.div
+          initial={{ opacity: 0, scale: 0.5, y: 40, rotate: isSuccess ? -6 : 6 }}
+          animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
+          exit={{ opacity: 0, scale: 0.7, y: -30 }}
+          transition={{ type: 'spring', damping: 14, stiffness: 260 }}
+          onClick={(e) => e.stopPropagation()}
+          className={`relative flex flex-col items-center p-5 rounded-[2.5rem] shadow-2xl border-4 backdrop-blur-2xl max-w-xs sm:max-w-sm text-center ${
             isSuccess
-              ? 'bg-gradient-to-b from-amber-500/90 via-orange-500/95 to-yellow-500/90 text-white border-amber-300 shadow-orange-500/30'
-              : 'bg-gradient-to-b from-rose-600/95 via-red-600/95 to-pink-700/95 text-white border-rose-300 shadow-rose-600/30'
+              ? 'bg-gradient-to-b from-amber-500/95 via-orange-500/95 to-yellow-500/95 text-white border-amber-300 shadow-amber-500/40'
+              : 'bg-gradient-to-b from-rose-600/95 via-red-600/95 to-pink-700/95 text-white border-rose-300 shadow-rose-600/40'
           }`}
         >
           {/* Close Button */}
@@ -80,7 +86,7 @@ export function MemeSticker({ meme, onClose }: MemeStickerProps) {
           <p className="text-xs font-bold opacity-90 leading-snug px-2 mt-0.5">
             {meme.subtitle}
           </p>
-        </div>
+        </motion.div>
       </motion.div>
     </AnimatePresence>
   );

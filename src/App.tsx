@@ -4,7 +4,17 @@ import { MemeSticker, MemeData } from './components/MemeSticker';
 import { fetchCardsByChapter, fetchAvailableChapters } from './lib/supabase';
 import { Card } from './types/card';
 import confetti from 'canvas-confetti';
-import { Flame, Sparkles, Trophy, ArrowLeft, BookOpen, CheckCircle2, XCircle, RefreshCw, Smile } from 'lucide-react';
+import { Flame, Sparkles, Trophy, ArrowLeft, BookOpen, CheckCircle2, XCircle, RefreshCw, Smile, Shuffle } from 'lucide-react';
+
+// Fisher-Yates Deck Randomizer Algorithm
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 // Exact User Provided GIPHY Meme Stickers
 const MEME_STICKERS = {
@@ -80,6 +90,7 @@ export default function App() {
   const [levelFilter, setLevelFilter] = useState<'all' | 'n5' | 'n4'>('all');
   const [activeMeme, setActiveMeme] = useState<MemeData | null>(null);
   const [memeMode, setMemeMode] = useState(true);
+  const [shownMemes, setShownMemes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function loadChapters() {
@@ -94,14 +105,30 @@ export default function App() {
   const loadChapter = async (chapter: number) => {
     setLoading(true);
     const fetchedCards = await fetchCardsByChapter(chapter);
-    setCards(fetchedCards);
-    setInitialCount(fetchedCards.length);
+    const randomizedCards = shuffleArray(fetchedCards);
+    setCards(randomizedCards);
+    setInitialCount(randomizedCards.length);
     setSelectedChapter(chapter);
     setScore({ remembered: 0, review: 0 });
     setStreak(0);
     setFailStreak(0);
     setActiveMeme(null);
+    setShownMemes(new Set());
     setLoading(false);
+  };
+
+  const triggerNextUnshownMeme = (type: 'success' | 'fail') => {
+    if (!memeMode) return;
+
+    const memePool = MEME_STICKERS[type];
+    const unshown = memePool.filter(m => !shownMemes.has(m.id));
+
+    if (unshown.length > 0) {
+      // Pick the first unshown meme in order or randomly
+      const selected = unshown[0];
+      setShownMemes(prev => new Set(prev).add(selected.id));
+      setActiveMeme({ ...selected, id: `${selected.id}_${Date.now()}` });
+    }
   };
 
   const handleSwipe = (id: string, remembered: boolean) => {
@@ -123,16 +150,9 @@ export default function App() {
         confetti({ particleCount: 150, spread: 100 });
       }
 
-      // Meme Trigger on 2 or 3 Rights (and cycling after)
-      if (memeMode) {
-        if (newStreak === 2) {
-          setActiveMeme({ ...MEME_STICKERS.success[0], id: 's1_' + Date.now() });
-        } else if (newStreak === 3) {
-          setActiveMeme({ ...MEME_STICKERS.success[1], id: 's2_' + Date.now() });
-        } else if (newStreak >= 5) {
-          const memeIndex = (newStreak % MEME_STICKERS.success.length);
-          setActiveMeme({ ...MEME_STICKERS.success[memeIndex], id: 's3_' + Date.now() });
-        }
+      // Meme Trigger: Trigger on 2nd, 3rd, 5th, etc., only if NOT shown yet
+      if (newStreak === 2 || newStreak === 3 || newStreak === 5 || newStreak === 8) {
+        triggerNextUnshownMeme('success');
       }
     } else {
       // Wrong Swipe Logic
@@ -141,16 +161,9 @@ export default function App() {
       setStreak(0);
       setScore(prev => ({ ...prev, review: prev.review + 1 }));
 
-      // Meme Trigger on 2 or 3 Wrongs
-      if (memeMode) {
-        if (newFail === 2) {
-          setActiveMeme({ ...MEME_STICKERS.fail[0], id: 'f1_' + Date.now() });
-        } else if (newFail === 3) {
-          setActiveMeme({ ...MEME_STICKERS.fail[1], id: 'f2_' + Date.now() });
-        } else if (newFail >= 5) {
-          const memeIndex = (newFail % MEME_STICKERS.fail.length);
-          setActiveMeme({ ...MEME_STICKERS.fail[memeIndex], id: 'f3_' + Date.now() });
-        }
+      // Meme Trigger on 2nd, 3rd, 5th wrong swipes, only if NOT shown yet
+      if (newFail === 2 || newFail === 3 || newFail === 5 || newFail === 8) {
+        triggerNextUnshownMeme('fail');
       }
     }
 
@@ -329,6 +342,15 @@ export default function App() {
               </button>
               
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCards(prev => shuffleArray(prev))}
+                  title="Randomize remaining cards in this chapter"
+                  className="bg-white/90 hover:bg-white backdrop-blur-md px-3.5 py-2 rounded-2xl text-xs font-black text-indigo-700 transition active:scale-95 border border-indigo-200 shadow-sm flex items-center gap-1.5"
+                >
+                  <Shuffle className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>SHUFFLE</span>
+                </button>
+
                 <span className="font-black text-indigo-900 text-xs tracking-widest uppercase bg-indigo-50 px-4 py-2 rounded-2xl backdrop-blur-md border border-indigo-200 shadow-sm">
                   CHAPTER {selectedChapter}
                 </span>
