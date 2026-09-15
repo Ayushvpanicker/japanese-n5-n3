@@ -8,6 +8,7 @@ import confetti from 'canvas-confetti';
 import { KANJI_LESSONS_DATA, getAvailableLessons, KanjiLessonItem } from '../data/kanjiLessonsData';
 import { KANJI_DICTIONARY, KanjiInfo, ExampleWord } from '../data/kanjiData';
 import { getKanjiMnemonic } from '../data/kanjiMnemonics';
+import { fetchKanjiVGData, KanjiVGData } from '../utils/kanjiVGService';
 
 interface KanjiDrawPracticeProps {
   onClose: () => void;
@@ -215,6 +216,18 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
     setIsAnimatingStrokes(false);
   };
 
+  // KanjiVG Official Vector Data State
+  const [kanjiVGData, setKanjiVGData] = useState<KanjiVGData | null>(null);
+
+  // Fetch official KanjiVG stroke order vector data
+  useEffect(() => {
+    let isMounted = true;
+    fetchKanjiVGData(activeKanjiDetails.char).then(data => {
+      if (isMounted) setKanjiVGData(data);
+    });
+    return () => { isMounted = false; };
+  }, [activeKanjiDetails.char]);
+
   // Exact Font Glyph Stroke Order Animator (100% Trace Alignment, No Misalignment, No Yellow)
   const getKanjiStrokeBounds = (char: string, idx: number, totalStrokes: number, width: number, height: number) => {
     const padX = width * 0.16;
@@ -299,7 +312,7 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
     };
   };
 
-  // ACCURATE FONT STROKE ORDER ANIMATOR (100% MATCH TO TRACE GUIDE)
+  // OFFICIAL KANJIVG & FONT STROKE ORDER ANIMATOR
   const startVisualStrokeAnimation = () => {
     clearCanvas();
     setIsAnimatingStrokes(true);
@@ -311,7 +324,10 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
     const width = canvas.width / 2;
     const height = canvas.height / 2;
 
-    const totalStrokes = Math.max(1, activeKanjiDetails.strokes || 4);
+    const totalStrokes = kanjiVGData && kanjiVGData.strokes.length > 0 
+      ? kanjiVGData.strokes.length 
+      : Math.max(1, activeKanjiDetails.strokes || 4);
+
     const perStrokeDuration = 800;
     const pauseDuration = 200;
     const strokeCycleTime = perStrokeDuration + pauseDuration;
@@ -322,35 +338,70 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
       const elapsed = now - startTime;
 
       if (elapsed >= totalDuration) {
-        // Final frame: render full font character in dark indigo with numbered badges
+        // Final frame: render full character with all stroke number badges
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        ctx.save();
-        ctx.font = `bold ${height * 0.75}px "Hiragino Sans", "Meiryo", "Kaku Gothic", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#312e81';
-        ctx.fillText(activeKanjiDetails.char, width / 2, height / 2);
-        ctx.restore();
-
-        // Draw all stroke badges ①, ②, ③...
-        for (let s = 0; s < totalStrokes; s++) {
-          const b = getKanjiStrokeBounds(activeKanjiDetails.char, s, totalStrokes, width, height);
+        if (kanjiVGData && kanjiVGData.strokes.length > 0) {
           ctx.save();
-          ctx.beginPath();
-          ctx.arc(b.startX, b.startY, 12, 0, Math.PI * 2);
-          ctx.fillStyle = '#4f46e5';
-          ctx.fill();
-          ctx.lineWidth = 2;
-          ctx.strokeStyle = '#ffffff';
-          ctx.stroke();
+          ctx.scale(width / 109, height / 109);
+          ctx.strokeStyle = '#312e81';
+          ctx.lineWidth = strokeWidth * (109 / width);
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
 
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 11px sans-serif';
+          for (let s = 0; s < kanjiVGData.strokes.length; s++) {
+            ctx.stroke(new Path2D(kanjiVGData.strokes[s].pathData));
+          }
+          ctx.restore();
+
+          for (let s = 0; s < kanjiVGData.numbers.length; s++) {
+            const num = kanjiVGData.numbers[s];
+            const bx = (num.x / 109) * width;
+            const by = (num.y / 109) * height;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(bx, by, 12, 0, Math.PI * 2);
+            ctx.fillStyle = '#4f46e5';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${num.num}`, bx, by);
+            ctx.restore();
+          }
+        } else {
+          ctx.save();
+          ctx.font = `bold ${height * 0.75}px "Hiragino Sans", "Meiryo", "Kaku Gothic", sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(`${s + 1}`, b.startX, b.startY);
+          ctx.fillStyle = '#312e81';
+          ctx.fillText(activeKanjiDetails.char, width / 2, height / 2);
           ctx.restore();
+
+          for (let s = 0; s < totalStrokes; s++) {
+            const b = getKanjiStrokeBounds(activeKanjiDetails.char, s, totalStrokes, width, height);
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(b.startX, b.startY, 12, 0, Math.PI * 2);
+            ctx.fillStyle = '#4f46e5';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${s + 1}`, b.startX, b.startY);
+            ctx.restore();
+          }
         }
 
         setIsAnimatingStrokes(false);
@@ -367,85 +418,127 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. Render font glyph clipped for strokes up to currentStrokeIdx
-      for (let s = 0; s <= currentStrokeIdx; s++) {
-        const b = getKanjiStrokeBounds(activeKanjiDetails.char, s, totalStrokes, width, height);
-        const p = s < currentStrokeIdx ? 1.0 : strokeProgress;
-
+      if (kanjiVGData && kanjiVGData.strokes.length > 0) {
+        // Render KanjiVG vector paths
         ctx.save();
-        ctx.beginPath();
+        ctx.scale(width / 109, height / 109);
+        ctx.lineWidth = strokeWidth * (109 / width);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-        // Directional stroke clip box around stroke s
-        const margin = width * 0.25;
-        if (b.mode === 'v') {
-          const clipY = b.startY;
-          const clipH = (b.endY - b.startY) * p + margin;
-          ctx.rect(b.startX - margin, clipY - margin / 2, margin * 2, clipH);
-        } else if (b.mode === 'diag-l') {
-          const clipX = b.startX - (b.startX - b.endX) * p - margin;
-          const clipY = b.startY;
-          const clipW = (b.startX - b.endX) * p + margin * 2;
-          const clipH = (b.endY - b.startY) * p + margin * 2;
-          ctx.rect(clipX, clipY - margin / 2, clipW, clipH);
-        } else if (b.mode === 'diag-r') {
-          const clipX = b.startX - margin;
-          const clipY = b.startY;
-          const clipW = (b.endX - b.startX) * p + margin * 2;
-          const clipH = (b.endY - b.startY) * p + margin * 2;
-          ctx.rect(clipX, clipY - margin / 2, clipW, clipH);
-        } else {
-          // Horizontal / general
-          const clipX = b.startX - margin / 2;
-          const clipW = (b.endX - b.startX) * p + margin;
-          ctx.rect(clipX, b.startY - margin, clipW, margin * 2);
+        // 1. Completed strokes
+        for (let s = 0; s < currentStrokeIdx; s++) {
+          ctx.strokeStyle = '#312e81';
+          ctx.stroke(new Path2D(kanjiVGData.strokes[s].pathData));
         }
 
-        ctx.clip();
-
-        // Render font glyph inside clip
-        ctx.font = `bold ${height * 0.75}px "Hiragino Sans", "Meiryo", "Kaku Gothic", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = s < currentStrokeIdx ? '#312e81' : '#4f46e5';
-        ctx.fillText(activeKanjiDetails.char, width / 2, height / 2);
-
+        // 2. Active stroke
+        if (kanjiVGData.strokes[currentStrokeIdx]) {
+          ctx.strokeStyle = '#6366f1';
+          ctx.stroke(new Path2D(kanjiVGData.strokes[currentStrokeIdx].pathData));
+        }
         ctx.restore();
-      }
 
-      // 2. Render origin badges ①, ②, ③...
-      for (let s = 0; s <= currentStrokeIdx; s++) {
-        const b = getKanjiStrokeBounds(activeKanjiDetails.char, s, totalStrokes, width, height);
+        // 3. KanjiVG stroke badges
+        for (let s = 0; s <= currentStrokeIdx; s++) {
+          const num = kanjiVGData.numbers[s];
+          if (num) {
+            const bx = (num.x / 109) * width;
+            const by = (num.y / 109) * height;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(bx, by, 12, 0, Math.PI * 2);
+            ctx.fillStyle = s === currentStrokeIdx ? '#ec4899' : '#4f46e5';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${num.num}`, bx, by);
+            ctx.restore();
+          }
+        }
+      } else {
+        // Fallback font glyph renderer
+        for (let s = 0; s <= currentStrokeIdx; s++) {
+          const b = getKanjiStrokeBounds(activeKanjiDetails.char, s, totalStrokes, width, height);
+          const p = s < currentStrokeIdx ? 1.0 : strokeProgress;
+
+          ctx.save();
+          ctx.beginPath();
+
+          const margin = width * 0.25;
+          if (b.mode === 'v') {
+            const clipY = b.startY;
+            const clipH = (b.endY - b.startY) * p + margin;
+            ctx.rect(b.startX - margin, clipY - margin / 2, margin * 2, clipH);
+          } else if (b.mode === 'diag-l') {
+            const clipX = b.startX - (b.startX - b.endX) * p - margin;
+            const clipY = b.startY;
+            const clipW = (b.startX - b.endX) * p + margin * 2;
+            const clipH = (b.endY - b.startY) * p + margin * 2;
+            ctx.rect(clipX, clipY - margin / 2, clipW, clipH);
+          } else if (b.mode === 'diag-r') {
+            const clipX = b.startX - margin;
+            const clipY = b.startY;
+            const clipW = (b.endX - b.startX) * p + margin * 2;
+            const clipH = (b.endY - b.startY) * p + margin * 2;
+            ctx.rect(clipX, clipY - margin / 2, clipW, clipH);
+          } else {
+            const clipX = b.startX - margin / 2;
+            const clipW = (b.endX - b.startX) * p + margin;
+            ctx.rect(clipX, b.startY - margin, clipW, margin * 2);
+          }
+
+          ctx.clip();
+
+          ctx.font = `bold ${height * 0.75}px "Hiragino Sans", "Meiryo", "Kaku Gothic", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = s < currentStrokeIdx ? '#312e81' : '#4f46e5';
+          ctx.fillText(activeKanjiDetails.char, width / 2, height / 2);
+
+          ctx.restore();
+        }
+
+        for (let s = 0; s <= currentStrokeIdx; s++) {
+          const b = getKanjiStrokeBounds(activeKanjiDetails.char, s, totalStrokes, width, height);
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(b.startX, b.startY, 12, 0, Math.PI * 2);
+          ctx.fillStyle = s === currentStrokeIdx ? '#ec4899' : '#4f46e5';
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${s + 1}`, b.startX, b.startY);
+          ctx.restore();
+        }
+
+        const activeB = getKanjiStrokeBounds(activeKanjiDetails.char, currentStrokeIdx, totalStrokes, width, height);
+        const tipX = activeB.startX + (activeB.endX - activeB.startX) * strokeProgress;
+        const tipY = activeB.startY + (activeB.endY - activeB.startY) * strokeProgress;
+
         ctx.save();
         ctx.beginPath();
-        ctx.arc(b.startX, b.startY, 12, 0, Math.PI * 2);
-        ctx.fillStyle = s === currentStrokeIdx ? '#ec4899' : '#4f46e5';
+        ctx.arc(tipX, tipY, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#ec4899';
         ctx.fill();
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.strokeStyle = '#ffffff';
         ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${s + 1}`, b.startX, b.startY);
         ctx.restore();
       }
-
-      // 3. Render active stroke tip cursor
-      const activeB = getKanjiStrokeBounds(activeKanjiDetails.char, currentStrokeIdx, totalStrokes, width, height);
-      const tipX = activeB.startX + (activeB.endX - activeB.startX) * strokeProgress;
-      const tipY = activeB.startY + (activeB.endY - activeB.startY) * strokeProgress;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(tipX, tipY, 10, 0, Math.PI * 2);
-      ctx.fillStyle = '#ec4899';
-      ctx.fill();
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = '#ffffff';
-      ctx.stroke();
-      ctx.restore();
 
       animRef.current = requestAnimationFrame(renderFrame);
     };
@@ -614,6 +707,135 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
     }
+  };
+
+  // PRINTABLE GENKŌYŌSHI PRACTICE WORKSHEET EXPORTER
+  const exportWorksheet = () => {
+    const off = document.createElement('canvas');
+    off.width = 1200;
+    off.height = 1600;
+    const ctx = off.getContext('2d');
+    if (!ctx) return;
+
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, off.width, off.height);
+
+    // Title Header
+    ctx.fillStyle = '#1e1b4b';
+    ctx.font = 'bold 36px "Hiragino Sans", "Meiryo", sans-serif';
+    ctx.fillText(`日本語 漢字練習シート — ${level} Lesson ${selectedLesson}`, 60, 80);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '20px sans-serif';
+    ctx.fillText(`Generated by Japanese Learning Master • ${currentLessonKanji.length} Kanji Characters`, 60, 115);
+
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(60, 135);
+    ctx.lineTo(1140, 135);
+    ctx.stroke();
+
+    // Render Kanji Rows (Up to 10 characters per page)
+    const items = currentLessonKanji.slice(0, 10);
+    let startY = 160;
+    const rowHeight = 135;
+
+    items.forEach((item) => {
+      const details = KANJI_DICTIONARY[item.kanji] || {
+        char: item.kanji,
+        meaning: 'kanji',
+        onyomi: '-',
+        kunyomi: '-',
+        strokes: 4,
+      };
+
+      // Kanji Card Box
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(60, startY, 240, 115, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      // Main Kanji
+      ctx.fillStyle = '#4338ca';
+      ctx.font = 'bold 54px "Hiragino Sans", "Meiryo", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(details.char, 120, startY + 58);
+
+      // Info
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText(details.meaning.slice(0, 14), 180, startY + 35);
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '14px sans-serif';
+      ctx.fillText(`音: ${details.onyomi.slice(0, 10)}`, 180, startY + 60);
+      ctx.fillText(`訓: ${details.kunyomi.slice(0, 10)}`, 180, startY + 82);
+
+      // Genkōyōshi Grid Boxes (6 Boxes: 2 trace + 4 blank)
+      const boxSize = 115;
+      const boxGap = 20;
+      const boxX = 330;
+
+      for (let b = 0; b < 6; b++) {
+        const curX = boxX + b * (boxSize + boxGap);
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(curX, startY, boxSize, boxSize, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        // Dashed Cross Grid Lines
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+
+        ctx.beginPath();
+        ctx.moveTo(curX, startY + boxSize / 2);
+        ctx.lineTo(curX + boxSize, startY + boxSize / 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(curX + boxSize / 2, startY);
+        ctx.lineTo(curX + boxSize / 2, startY + boxSize);
+        ctx.stroke();
+
+        ctx.setLineDash([]); // Reset dash
+
+        // First 2 boxes have trace guides
+        if (b < 2) {
+          ctx.fillStyle = b === 0 ? 'rgba(99, 102, 241, 0.45)' : 'rgba(99, 102, 241, 0.25)';
+          ctx.font = 'bold 75px "Hiragino Sans", "Meiryo", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(details.char, curX + boxSize / 2, startY + boxSize / 2);
+        }
+      }
+
+      startY += rowHeight;
+    });
+
+    // Trigger Image Download
+    const link = document.createElement('a');
+    link.download = `kanji_practice_sheet_level_${level}_lesson_${selectedLesson}.png`;
+    link.href = off.toDataURL('image/png');
+    link.click();
+
+    setFeedbackMessage('📄 Printable Worksheet Exported & Downloaded!');
+  };
+
+  // HINT ASSIST
+  const giveHint = () => {
+    startVisualStrokeAnimation();
+    setFeedbackMessage(`💡 Hint: Pay close attention to stroke order badges ①, ②, ③...!`);
   };
 
   const masteredCountInLesson = currentLessonKanji.filter(k => masteredKanji.has(k.kanji)).length;
@@ -1056,33 +1278,54 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
             </div>
           )}
 
-          {/* Drawing Action Buttons (Undo, Clear, Check Accuracy) */}
-          <div className="w-full flex items-center gap-2">
-            <button
-              onClick={undoLastStroke}
-              disabled={drawnStrokes.length === 0}
-              title="Undo last stroke"
-              className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition active:scale-90 border border-slate-200"
-            >
-              <Undo2 className="w-4 h-4" />
-            </button>
+          {/* Drawing Action Buttons */}
+          <div className="w-full flex flex-col gap-2">
+            <div className="w-full flex items-center justify-between gap-1.5 flex-wrap">
+              <button
+                onClick={exportWorksheet}
+                className="px-3 py-1 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black transition flex items-center gap-1.5 border border-slate-200 shadow-xs active:scale-95"
+                title="Download printable Genkōyōshi practice worksheet"
+              >
+                <span>📄 EXPORT WORKSHEET</span>
+              </button>
 
-            <button
-              onClick={clearCanvas}
-              disabled={drawnStrokes.length === 0}
-              title="Clear canvas"
-              className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition active:scale-90 border border-slate-200"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
+              <button
+                onClick={giveHint}
+                className="px-3 py-1 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-black transition flex items-center gap-1.5 border border-amber-200 shadow-xs active:scale-95"
+                title="Show stroke order hint"
+              >
+                <Lightbulb className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                <span>HINT 💡</span>
+              </button>
+            </div>
 
-            <button
-              onClick={checkDrawing}
-              className="flex-1 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-black py-2.5 rounded-2xl shadow-md active:scale-95 transition flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider"
-            >
-              <Award className="w-4 h-4" />
-              <span>CHECK DRAWING ✨</span>
-            </button>
+            <div className="w-full flex items-center gap-2">
+              <button
+                onClick={undoLastStroke}
+                disabled={drawnStrokes.length === 0}
+                title="Undo last stroke"
+                className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition active:scale-90 border border-slate-200"
+              >
+                <Undo2 className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={clearCanvas}
+                disabled={drawnStrokes.length === 0}
+                title="Clear canvas"
+                className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition active:scale-90 border border-slate-200"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={checkDrawing}
+                className="flex-1 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-black py-2.5 rounded-2xl shadow-md active:scale-95 transition flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider"
+              >
+                <Award className="w-4 h-4" />
+                <span>CHECK DRAWING ✨</span>
+              </button>
+            </div>
           </div>
 
           {/* Previous / Next Kanji Navigation Bar */}
