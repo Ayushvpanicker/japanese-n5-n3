@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@500;700;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Plus Jakarta Sans', 'Noto Sans JP', sans-serif;
+  background-color: #030712;
+  color: #f8fafc;
+  overflow-x: hidden;
+}
+
+@layer utilities {
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+  
+  /* Cyber Glassmorphism effects */
+  .glass-panel {
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-card-front {
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .glass-card-back {
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 27, 75, 0.95));
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(129, 140, 248, 0.2);
+  }
+
+  /* Neon Glow Shadows */
+  .glow-cyan {
+    box-shadow: 0 0 35px -5px rgba(56, 189, 248, 0.35);
+  }
+  .glow-emerald {
+    box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.4);
+  }
+  .glow-rose {
+    box-shadow: 0 0 35px -5px rgba(244, 63, 94, 0.4);
+  }
+  .glow-purple {
+    box-shadow: 0 0 35px -5px rgba(168, 85, 247, 0.35);
+  }
+
+  /* Text Shimmer Gradient */
+  .text-gradient-japan {
+    background: linear-gradient(135deg, #ffffff 0%, #38bdf8 50%, #818cf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #fef08a 0%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .bg-animate {
+    background-size: 300% 300%;
+    animation: gradientMove 12s ease infinite;
+  }
+}
+
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(1deg); }
+}
+
+.animate-float {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+/* Custom sleek scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.8);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.8);
+}
