@@ -47,7 +47,6 @@ export default function App() {
       setXp(prev => prev + 10);
       setScore(prev => ({ ...prev, remembered: prev.remembered + 1 }));
 
-      // Streak celebration
       if (newStreak === 3) {
         triggerCombo('🔥 3 STREAK! +10 XP');
       } else if (newStreak === 5) {
@@ -74,7 +73,6 @@ export default function App() {
     setTimeout(() => setComboMessage(null), 2200);
   };
 
-  // Filtered chapters for tab view
   const filteredChapters = availableChapters.filter(ch => {
     if (levelFilter === 'n5') return ch <= 25;
     if (levelFilter === 'n4') return ch >= 26;
@@ -82,32 +80,31 @@ export default function App() {
   });
 
   return (
-    <div className="relative min-h-[100dvh] bg-slate-950 flex flex-col items-center justify-between p-4 overflow-hidden select-none font-sans text-slate-100">
+    <div className="relative min-h-[100dvh] bg-transparent flex flex-col items-center justify-between p-4 overflow-hidden select-none font-sans text-slate-900">
       
-      {/* --- AMBIENT NEON GLOW ORBS --- */}
-      <div className="absolute top-[-10%] left-[-10%] w-[550px] h-[550px] bg-indigo-600/20 rounded-full mix-blend-screen filter blur-[140px] animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-rose-600/15 rounded-full mix-blend-screen filter blur-[130px] animate-pulse" style={{ animationDelay: '2s' }}></div>
-      <div className="absolute top-[40%] left-[40%] w-[350px] h-[350px] bg-cyan-600/15 rounded-full mix-blend-screen filter blur-[110px] animate-pulse" style={{ animationDelay: '4s' }}></div>
+      {/* --- AMBIENT SUNSET ORBS --- */}
+      <div className="absolute top-[-10%] left-[-10%] w-[550px] h-[550px] bg-pink-300/30 rounded-full mix-blend-multiply filter blur-[140px] animate-pulse"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-300/25 rounded-full mix-blend-multiply filter blur-[130px] animate-pulse" style={{ animationDelay: '2s' }}></div>
 
       {/* --- TOP APP HEADER (TOTAL XP & STREAK) --- */}
       <header className="z-20 w-full max-w-4xl flex justify-between items-center py-3 px-2">
         <div className="flex items-center gap-2">
-          <div className="bg-indigo-950/80 border border-indigo-500/30 p-2 rounded-2xl flex items-center gap-2 shadow-lg">
-            <Sparkles className="w-5 h-5 text-indigo-400 animate-spin" style={{ animationDuration: '8s' }} />
-            <span className="text-xs font-black tracking-widest text-indigo-300 uppercase">JLPT MASTER</span>
+          <div className="bg-white/90 border border-slate-200/80 p-2.5 rounded-2xl flex items-center gap-2 shadow-sm backdrop-blur-md">
+            <Sparkles className="w-5 h-5 text-indigo-600 animate-spin" style={{ animationDuration: '8s' }} />
+            <span className="text-xs font-black tracking-widest text-indigo-900 uppercase">JLPT MASTER</span>
           </div>
         </div>
 
         {/* XP & Streak Pills */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-3.5 py-1.5 rounded-full shadow-lg">
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span className="text-xs font-black text-amber-300">{xp} XP</span>
+          <div className="flex items-center gap-1.5 bg-amber-500/15 border border-amber-500/30 px-3.5 py-1.5 rounded-full shadow-sm backdrop-blur-md">
+            <Trophy className="w-4 h-4 text-amber-600" />
+            <span className="text-xs font-black text-amber-900">{xp} XP</span>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-orange-500/10 border border-orange-500/30 px-3.5 py-1.5 rounded-full shadow-lg">
-            <Flame className={`w-4 h-4 ${streak > 0 ? 'text-orange-400 animate-bounce' : 'text-slate-500'}`} />
-            <span className="text-xs font-black text-orange-300">{streak} STREAK</span>
+          <div className="flex items-center gap-1.5 bg-orange-500/15 border border-orange-500/30 px-3.5 py-1.5 rounded-full shadow-sm backdrop-blur-md">
+            <Flame className={`w-4 h-4 ${streak > 0 ? 'text-orange-600 animate-bounce' : 'text-slate-400'}`} />
+            <span className="text-xs font-black text-orange-900">{streak} STREAK</span>
           </div>
         </div>
       </header>
@@ -117,53 +114,53 @@ export default function App() {
         
         {/* Combo Notification Banner */}
         {comboMessage && (
-          <div className="fixed top-20 z-50 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black px-6 py-3 rounded-full shadow-2xl animate-bounce text-sm tracking-wider border border-amber-200">
+          <div className="fixed top-20 z-50 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black px-6 py-3 rounded-full shadow-2xl animate-bounce text-sm tracking-wider border border-white/40">
             {comboMessage}
           </div>
         )}
 
         {selectedChapter === null ? (
-          // ==================== HOME MENU SCREEN ====================
+          // ==================== HOME MENU SCREEN (LIGHT MODE) ====================
           <div className="w-full flex flex-col items-center max-w-3xl animate-in zoom-in-95 duration-400">
             
             {/* Title Section */}
             <div className="text-center mb-8">
-              <h1 className="text-4xl md:text-6xl font-black mb-3 tracking-tight text-gradient-japan drop-shadow-lg">
+              <h1 className="text-4xl md:text-6xl font-black mb-3 tracking-tight text-gradient-japan drop-shadow-sm">
                 Minna no Nihongo
               </h1>
-              <p className="text-slate-400 text-sm md:text-base font-semibold">
+              <p className="text-slate-600 text-sm md:text-base font-bold">
                 Master Japanese Vocabulary with Interactive 3D Flashcards
               </p>
             </div>
 
             {/* Level Filter Tabs (All / N5 / N4) */}
-            <div className="flex bg-slate-900/80 p-1.5 rounded-2xl border border-white/10 mb-8 shadow-xl">
+            <div className="flex bg-white/90 p-1.5 rounded-2xl border border-slate-200/80 mb-8 shadow-md backdrop-blur-md">
               <button
                 onClick={() => setLevelFilter('all')}
-                className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${
                   levelFilter === 'all' 
-                    ? 'bg-gradient-to-r from-indigo-500 to-sky-500 text-white shadow-lg' 
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-indigo-600 text-white shadow-md' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 ALL CHAPTERS
               </button>
               <button
                 onClick={() => setLevelFilter('n5')}
-                className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${
                   levelFilter === 'n5' 
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg' 
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-teal-600 text-white shadow-md' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 N5 (CH. 1-25)
               </button>
               <button
                 onClick={() => setLevelFilter('n4')}
-                className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${
                   levelFilter === 'n4' 
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg' 
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-pink-600 text-white shadow-md' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 N4 (CH. 26-50)
@@ -178,28 +175,28 @@ export default function App() {
                   <button
                     key={ch}
                     onClick={() => loadChapter(ch)}
-                    className={`group relative glass-panel hover:bg-slate-800/80 active:scale-95 transition-all p-6 rounded-3xl text-xl font-bold border flex flex-col items-center justify-between gap-3 shadow-xl hover:shadow-2xl overflow-hidden ${
-                      isN4 ? 'hover:border-purple-500/50 border-purple-500/10' : 'hover:border-sky-500/50 border-sky-500/10'
+                    className={`group relative glass-panel hover:bg-white/95 active:scale-95 transition-all p-6 rounded-3xl text-xl font-bold border flex flex-col items-center justify-between gap-3 shadow-md hover:shadow-xl overflow-hidden ${
+                      isN4 ? 'hover:border-pink-500/60 border-pink-200' : 'hover:border-indigo-500/60 border-indigo-200'
                     }`}
                   >
                     {/* Level Tag */}
                     <div className="w-full flex justify-between items-center">
                       <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase ${
-                        isN4 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        isN4 ? 'bg-pink-100 text-pink-700 border border-pink-200' : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
                       }`}>
                         {isN4 ? 'JLPT N4' : 'JLPT N5'}
                       </span>
-                      <BookOpen className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
+                      <BookOpen className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition-colors" />
                     </div>
 
                     {/* Chapter Number */}
                     <div className="flex flex-col items-center my-2">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">CHAPTER</span>
-                      <span className="text-4xl font-black text-white group-hover:scale-110 transition-transform">{ch}</span>
+                      <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest">CHAPTER</span>
+                      <span className="text-4xl font-black text-slate-900 group-hover:scale-110 transition-transform">{ch}</span>
                     </div>
 
                     {/* Bottom CTA */}
-                    <div className="w-full text-center text-xs font-extrabold text-sky-400 group-hover:text-sky-300">
+                    <div className="w-full text-center text-xs font-black text-indigo-600 group-hover:text-indigo-800">
                       START DECK →
                     </div>
                   </button>
@@ -208,21 +205,21 @@ export default function App() {
             </div>
           </div>
         ) : (
-          // ==================== FLASHCARD DECK SCREEN ====================
+          // ==================== FLASHCARD DECK SCREEN (LIGHT MODE) ====================
           <div className="w-full flex flex-col items-center max-w-md animate-in fade-in duration-300">
             
             {/* Top Navigation & Deck Info */}
             <div className="flex justify-between items-center w-full mb-4 px-1">
               <button 
                 onClick={() => setSelectedChapter(null)} 
-                className="bg-slate-900/80 hover:bg-slate-800 backdrop-blur-md px-4 py-2 rounded-2xl text-xs font-black text-slate-300 transition active:scale-95 border border-white/10 shadow-lg flex items-center gap-2"
+                className="bg-white/90 hover:bg-white backdrop-blur-md px-4 py-2 rounded-2xl text-xs font-black text-slate-800 transition active:scale-95 border border-slate-200 shadow-sm flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>MENU</span>
               </button>
               
               <div className="flex items-center gap-2">
-                <span className="font-black text-white text-xs tracking-widest uppercase bg-indigo-950/80 px-4 py-2 rounded-2xl backdrop-blur-md border border-indigo-500/30">
+                <span className="font-black text-indigo-900 text-xs tracking-widest uppercase bg-indigo-50 px-4 py-2 rounded-2xl backdrop-blur-md border border-indigo-200 shadow-sm">
                   CHAPTER {selectedChapter}
                 </span>
               </div>
@@ -231,30 +228,30 @@ export default function App() {
             {/* LIVE SCORE COUNTERS BAR (Wrong Left vs Right Right) */}
             <div className="flex justify-between items-center w-full mb-6 px-1">
               {/* WRONG COUNTER (LEFT SIDE - RED) */}
-              <div className="flex items-center gap-3 bg-rose-950/60 backdrop-blur-md border border-rose-500/30 px-4 py-2.5 rounded-2xl shadow-xl shadow-rose-950/40">
-                <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 font-black text-sm flex items-center justify-center border border-rose-500/40 shadow-inner">
-                  <XCircle className="w-5 h-5 text-rose-400" />
+              <div className="flex items-center gap-3 bg-rose-50/90 backdrop-blur-md border border-rose-200 px-4 py-2.5 rounded-2xl shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 font-black text-sm flex items-center justify-center border border-rose-300 shadow-inner">
+                  <XCircle className="w-5 h-5 text-rose-600" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-rose-400">Review</span>
-                  <span className="text-2xl font-black text-rose-300 leading-none">{score.review}</span>
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-rose-700">Review</span>
+                  <span className="text-2xl font-black text-rose-600 leading-none">{score.review}</span>
                 </div>
               </div>
 
               {/* PROGRESS COUNTER (CENTER) */}
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DECK</span>
-                <span className="text-sm font-black text-slate-200">{cards.length} / {initialCount} LEFT</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">DECK</span>
+                <span className="text-sm font-black text-slate-800">{cards.length} / {initialCount} LEFT</span>
               </div>
 
               {/* RIGHT COUNTER (RIGHT SIDE - GREEN) */}
-              <div className="flex items-center gap-3 bg-emerald-950/60 backdrop-blur-md border border-emerald-500/30 px-4 py-2.5 rounded-2xl shadow-xl shadow-emerald-950/40">
+              <div className="flex items-center gap-3 bg-emerald-50/90 backdrop-blur-md border border-emerald-200 px-4 py-2.5 rounded-2xl shadow-sm">
                 <div className="flex flex-col text-right">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400">Mastered</span>
-                  <span className="text-2xl font-black text-emerald-300 leading-none">{score.remembered}</span>
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700">Mastered</span>
+                  <span className="text-2xl font-black text-emerald-600 leading-none">{score.remembered}</span>
                 </div>
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 font-black text-sm flex items-center justify-center border border-emerald-500/40 shadow-inner">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 font-black text-sm flex items-center justify-center border border-emerald-300 shadow-inner">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 </div>
               </div>
             </div>
@@ -262,9 +259,9 @@ export default function App() {
             {/* Card Stack Container */}
             <div className="relative w-full h-[28rem]">
               {loading ? (
-                <div className="w-full h-full flex flex-col items-center justify-center glass-panel rounded-[2.5rem] border border-white/10">
-                  <RefreshCw className="animate-spin w-10 h-10 text-sky-400 mb-4" />
-                  <div className="text-slate-300 font-bold text-sm">Loading Chapter Deck...</div>
+                <div className="w-full h-full flex flex-col items-center justify-center glass-panel rounded-[2.5rem] border border-slate-200">
+                  <RefreshCw className="animate-spin w-10 h-10 text-indigo-600 mb-4" />
+                  <div className="text-slate-800 font-bold text-sm">Loading Chapter Deck...</div>
                 </div>
               ) : cards.length > 0 ? (
                 cards.map((card, index) => (
@@ -277,36 +274,36 @@ export default function App() {
                 ))
               ) : (
                 /* DECK COMPLETE SCREEN */
-                <div className="w-full h-full flex flex-col items-center justify-center glass-panel rounded-[2.5rem] shadow-2xl border border-white/15 p-8 text-center animate-in zoom-in-95 duration-500">
-                  <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mb-6 border border-emerald-400/40 glow-emerald">
-                    <Trophy className="w-10 h-10 text-emerald-300 animate-bounce" />
+                <div className="w-full h-full flex flex-col items-center justify-center glass-panel rounded-[2.5rem] shadow-2xl border border-slate-200 p-8 text-center animate-in zoom-in-95 duration-500">
+                  <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-6 border border-emerald-300 glow-emerald">
+                    <Trophy className="w-10 h-10 text-emerald-600 animate-bounce" />
                   </div>
 
                   <h2 className="text-4xl font-black mb-2 text-gradient-japan">
                     Deck Complete!
                   </h2>
-                  <p className="text-slate-400 text-xs font-semibold mb-6">Chapter {selectedChapter} Mastered</p>
+                  <p className="text-slate-600 text-xs font-bold mb-6">Chapter {selectedChapter} Mastered</p>
 
-                  <div className="flex w-full justify-around mb-8 bg-slate-900/80 p-5 rounded-2xl border border-white/10">
+                  <div className="flex w-full justify-around mb-8 bg-slate-50 p-5 rounded-2xl border border-slate-200">
                     <div className="flex flex-col items-center">
-                      <span className="text-3xl font-black text-emerald-400 mb-1">{score.remembered}</span>
-                      <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">Mastered</span>
+                      <span className="text-3xl font-black text-emerald-600 mb-1">{score.remembered}</span>
+                      <span className="text-[10px] text-slate-500 font-extrabold tracking-widest uppercase">Mastered</span>
                     </div>
-                    <div className="w-px h-full bg-white/10"></div>
+                    <div className="w-px h-full bg-slate-200"></div>
                     <div className="flex flex-col items-center">
-                      <span className="text-3xl font-black text-rose-400 mb-1">{score.review}</span>
-                      <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">Review</span>
+                      <span className="text-3xl font-black text-rose-600 mb-1">{score.review}</span>
+                      <span className="text-[10px] text-slate-500 font-extrabold tracking-widest uppercase">Review</span>
                     </div>
-                    <div className="w-px h-full bg-white/10"></div>
+                    <div className="w-px h-full bg-slate-200"></div>
                     <div className="flex flex-col items-center">
-                      <span className="text-3xl font-black text-amber-400 mb-1">+{score.remembered * 10}</span>
-                      <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">XP Gained</span>
+                      <span className="text-3xl font-black text-amber-600 mb-1">+{score.remembered * 10}</span>
+                      <span className="text-[10px] text-slate-500 font-extrabold tracking-widest uppercase">XP Gained</span>
                     </div>
                   </div>
 
                   <button 
                     onClick={() => setSelectedChapter(null)}
-                    className="w-full bg-gradient-to-r from-sky-400 to-indigo-500 text-slate-950 hover:from-sky-300 hover:to-indigo-400 active:scale-95 py-4 rounded-2xl font-black tracking-wide transition shadow-xl glow-cyan"
+                    className="w-full bg-gradient-to-r from-indigo-600 to-pink-600 text-white hover:from-indigo-700 hover:to-pink-700 active:scale-95 py-4 rounded-2xl font-black tracking-wide transition shadow-xl"
                   >
                     CONTINUE STUDYING
                   </button>
@@ -318,7 +315,7 @@ export default function App() {
       </main>
 
       {/* --- FOOTER & KEYBOARD SHORTCUT HINTS --- */}
-      <footer className="z-20 w-full max-w-4xl flex justify-between items-center py-2 px-2 text-[11px] text-slate-500 font-bold">
+      <footer className="z-20 w-full max-w-4xl flex justify-between items-center py-2 px-2 text-[11px] text-slate-600 font-extrabold">
         <span>Minna no Nihongo Flashcards</span>
         <div className="hidden sm:flex items-center gap-4">
           <span>[←] Review</span>
