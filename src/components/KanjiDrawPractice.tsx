@@ -2,11 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { 
   ArrowLeft, Volume2, RefreshCw, Undo2, CheckCircle2, 
   Eye, EyeOff, ChevronLeft, ChevronRight, BookOpen, Trophy, Layers, Award, Sparkles,
-  Play, Pause, Headphones, Unlock, PenTool
+  Play, Pause, Headphones, Unlock, PenTool, Lightbulb
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { KANJI_LESSONS_DATA, getAvailableLessons, KanjiLessonItem } from '../data/kanjiLessonsData';
 import { KANJI_DICTIONARY, KanjiInfo, ExampleWord } from '../data/kanjiData';
+import { getKanjiMnemonic } from '../data/kanjiMnemonics';
+import { getKanjiStrokePaths } from '../data/kanjiStrokeData';
 
 interface KanjiDrawPracticeProps {
   onClose: () => void;
@@ -91,6 +93,9 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
   const [practiceMode, setPracticeMode] = useState<'normal' | 'listenDraw'>('normal');
   const [isRevealed, setIsRevealed] = useState<boolean>(false);
 
+  // Extra Option: Expandable Radicals & Mnemonics
+  const [showMnemonics, setShowMnemonics] = useState<boolean>(true);
+
   // Guide Mode: 'bold' (100% visible) | 'faint' (40% faint) | 'off' (freehand memory)
   const [guideMode, setGuideMode] = useState<'bold' | 'faint' | 'off'>('bold');
   const [strokeColor] = useState<string>('#4f46e5');
@@ -146,6 +151,7 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
       };
 
   const exampleWords = getExampleWords(activeKanjiDetails);
+  const mnemonicInfo = getKanjiMnemonic(activeKanjiDetails.char);
 
   // Reset state when Kanji changes
   useEffect(() => {
@@ -210,7 +216,68 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
     setIsAnimatingStrokes(false);
   };
 
-  // REAL-TIME VISUAL STROKE CANVAS ANIMATOR
+  // Helper to render vector stroke paths cleanly on canvas (No yellow animation!)
+  const renderStrokeVectorPath = (
+    ctx: CanvasRenderingContext2D,
+    points: { x: number; y: number }[],
+    progress: number,
+    color: string,
+    canvasW: number,
+    canvasH: number,
+    lineWidth: number
+  ) => {
+    if (points.length === 0 || progress <= 0) return { tipX: 0, tipY: 0 };
+
+    const scaled = points.map(p => ({ x: p.x * canvasW, y: p.y * canvasH }));
+    if (scaled.length === 1) return { tipX: scaled[0].x, tipY: scaled[0].y };
+
+    let totalLength = 0;
+    const segmentLengths: number[] = [];
+    for (let i = 0; i < scaled.length - 1; i++) {
+      const dx = scaled[i + 1].x - scaled[i].x;
+      const dy = scaled[i + 1].y - scaled[i].y;
+      const len = Math.hypot(dx, dy);
+      segmentLengths.push(len);
+      totalLength += len;
+    }
+
+    const targetLength = totalLength * Math.min(1, progress);
+    let accumulated = 0;
+    let tipX = scaled[0].x;
+    let tipY = scaled[0].y;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(scaled[0].x, scaled[0].y);
+
+    for (let i = 0; i < segmentLengths.length; i++) {
+      const segLen = segmentLengths[i];
+      if (accumulated + segLen <= targetLength) {
+        ctx.lineTo(scaled[i + 1].x, scaled[i + 1].y);
+        accumulated += segLen;
+        tipX = scaled[i + 1].x;
+        tipY = scaled[i + 1].y;
+      } else {
+        const remaining = targetLength - accumulated;
+        const ratio = segLen > 0 ? remaining / segLen : 0;
+        tipX = scaled[i].x + (scaled[i + 1].x - scaled[i].x) * ratio;
+        tipY = scaled[i].y + (scaled[i + 1].y - scaled[i].y) * ratio;
+        ctx.lineTo(tipX, tipY);
+        break;
+      }
+    }
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.restore();
+
+    return { tipX, tipY };
+  };
+
+  // ACCURATE VECTOR STROKE ORDER ANIMATOR (NO YELLOW MASK)
   const startVisualStrokeAnimation = () => {
     clearCanvas();
     setIsAnimatingStrokes(true);
@@ -222,44 +289,116 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
     const width = canvas.width / 2;
     const height = canvas.height / 2;
 
-    let progress = 0;
-    const duration = 2000;
+    const strokePaths = getKanjiStrokePaths(activeKanjiDetails.char, activeKanjiDetails.strokes);
+    const totalStrokes = strokePaths.length;
+
+    const perStrokeDuration = 800;
+    const pauseDuration = 200;
+    const strokeCycleTime = perStrokeDuration + pauseDuration;
+    const totalDuration = totalStrokes * strokeCycleTime;
     const startTime = performance.now();
 
     const renderFrame = (now: number) => {
       const elapsed = now - startTime;
-      progress = Math.min(1, elapsed / duration);
+
+      if (elapsed >= totalDuration) {
+        // Final frame: render all strokes in dark indigo with numbered badges
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let s = 0; s < totalStrokes; s++) {
+          renderStrokeVectorPath(ctx, strokePaths[s], 1.0, '#4f46e5', width, height, strokeWidth);
+
+          const startPt = strokePaths[s][0];
+          if (startPt) {
+            const bx = startPt.x * width;
+            const by = startPt.y * height;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(bx, by, 12, 0, Math.PI * 2);
+            ctx.fillStyle = '#4f46e5';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${s + 1}`, bx, by);
+            ctx.restore();
+          }
+        }
+
+        setIsAnimatingStrokes(false);
+        animRef.current = null;
+        setFeedbackMessage(`🎬 Complete! All ${totalStrokes} Strokes Animated in Correct Order!`);
+        return;
+      }
+
+      const currentStrokeIdx = Math.min(totalStrokes - 1, Math.floor(elapsed / strokeCycleTime));
+      const strokeElapsed = elapsed % strokeCycleTime;
+      const strokeProgress = Math.min(1, strokeElapsed / perStrokeDuration);
+
+      setFeedbackMessage(`✏️ Animating Stroke ${currentStrokeIdx + 1} of ${totalStrokes}...`);
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      ctx.save();
-      ctx.font = `bold ${height * 0.75}px "Hiragino Sans", "Meiryo", "Kaku Gothic", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      // 1. Render all completed strokes
+      for (let s = 0; s < currentStrokeIdx; s++) {
+        renderStrokeVectorPath(ctx, strokePaths[s], 1.0, '#4f46e5', width, height, strokeWidth);
+      }
 
-      ctx.beginPath();
-      ctx.rect(0, 0, width * progress, height);
-      ctx.clip();
+      // 2. Render active stroke progressively
+      const activeStroke = strokePaths[currentStrokeIdx];
+      const { tipX, tipY } = renderStrokeVectorPath(
+        ctx,
+        activeStroke,
+        strokeProgress,
+        '#6366f1',
+        width,
+        height,
+        strokeWidth
+      );
 
-      ctx.fillStyle = '#f59e0b';
-      ctx.fillText(activeKanjiDetails.char, width / 2, height / 2);
-      ctx.restore();
+      // 3. Render stroke number origin badges
+      for (let s = 0; s <= currentStrokeIdx; s++) {
+        const startPt = strokePaths[s][0];
+        if (startPt) {
+          const bx = startPt.x * width;
+          const by = startPt.y * height;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(bx, by, 12, 0, Math.PI * 2);
+          ctx.fillStyle = s === currentStrokeIdx ? '#ec4899' : '#4f46e5';
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
 
-      if (progress < 1) {
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${s + 1}`, bx, by);
+          ctx.restore();
+        }
+      }
+
+      // 4. Render active tip cursor
+      if (activeStroke && activeStroke.length > 0 && strokeProgress > 0 && strokeProgress < 1) {
+        ctx.save();
         ctx.beginPath();
-        ctx.arc(width * progress, height / 2, 12, 0, Math.PI * 2);
+        ctx.arc(tipX, tipY, 10, 0, Math.PI * 2);
         ctx.fillStyle = '#ec4899';
         ctx.fill();
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
         ctx.strokeStyle = '#ffffff';
         ctx.stroke();
-
-        animRef.current = requestAnimationFrame(renderFrame);
-      } else {
-        setIsAnimatingStrokes(false);
-        animRef.current = null;
-        setFeedbackMessage('🎬 Stroke Animation Complete!');
+        ctx.restore();
       }
+
+      animRef.current = requestAnimationFrame(renderFrame);
     };
 
     animRef.current = requestAnimationFrame(renderFrame);
@@ -668,6 +807,42 @@ export function KanjiDrawPractice({ onClose, onAddXp }: KanjiDrawPracticeProps) 
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* EXPANDABLE RADICALS & MNEMONIC EXTRA OPTION */}
+            {(practiceMode === 'normal' || isRevealed) && (
+              <div className="my-2 text-left">
+                <button
+                  onClick={() => setShowMnemonics(!showMnemonics)}
+                  className="w-full flex items-center justify-between bg-amber-50 hover:bg-amber-100/80 text-amber-900 border border-amber-200 p-2.5 rounded-2xl text-xs font-black transition active:scale-95 shadow-sm"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Lightbulb className="w-4 h-4 text-amber-600 animate-pulse" />
+                    <span>RADICALS & MNEMONIC STORY</span>
+                  </div>
+                  <span className="text-[10px] font-black bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full uppercase">
+                    {showMnemonics ? 'HIDE ▲' : 'SHOW ▼'}
+                  </span>
+                </button>
+
+                {showMnemonics && mnemonicInfo && (
+                  <div className="mt-2 bg-gradient-to-br from-amber-50 to-orange-50/80 p-3.5 rounded-2xl border border-amber-200/90 shadow-sm animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider block">COMPONENTS:</span>
+                      {mnemonicInfo.radicals.map((r, idx) => (
+                        <span key={idx} className="text-xs font-black bg-white text-slate-800 px-2.5 py-1 rounded-xl border border-amber-200 shadow-xs flex items-center gap-1">
+                          <span className="text-base text-indigo-700">{r.char}</span>
+                          <span className="text-[10px] font-bold text-slate-500">({r.meaning})</span>
+                        </span>
+                      ))}
+                    </div>
+
+                    <p className="text-xs font-extrabold text-slate-800 leading-relaxed italic bg-white/80 p-2.5 rounded-xl border border-amber-200/60">
+                      💡 "{mnemonicInfo.story}"
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
