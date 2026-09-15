@@ -129,18 +129,22 @@ export function CardItem({ card, onSwipe, active }: CardItemProps) {
         </div>
 
         {/* Main Japanese Kanji & Hiragana Word Content */}
-        <div className="my-auto flex flex-col items-center justify-center z-10">
+        <div className="my-auto flex flex-col items-center justify-center z-10 w-full px-2">
           {card.kanji ? (
             <>
-              <h2 className="text-6xl md:text-7xl font-black text-slate-900 mb-4 tracking-tight drop-shadow-sm">
+              <h2 className={`font-black text-slate-900 mb-3 tracking-tight drop-shadow-sm text-center leading-tight ${
+                card.kanji.length > 8 ? 'text-3xl md:text-4xl' : 'text-5xl md:text-6xl'
+              }`}>
                 {card.kanji}
               </h2>
-              <div className="text-2xl md:text-3xl font-extrabold text-indigo-600 bg-indigo-50/90 px-6 py-2.5 rounded-2xl border border-indigo-200/80 shadow-sm flex items-center gap-2">
+              <div className="text-lg md:text-2xl font-extrabold text-indigo-600 bg-indigo-50/90 px-5 py-2 rounded-2xl border border-indigo-200/80 shadow-sm flex items-center justify-center gap-2 text-center max-w-full">
                 <span>{card.reading}</span>
               </div>
             </>
           ) : (
-            <h2 className="text-6xl md:text-7xl font-black text-indigo-600 mb-2 tracking-tight drop-shadow-sm">
+            <h2 className={`font-black text-indigo-600 mb-2 tracking-tight drop-shadow-sm text-center leading-tight ${
+              card.reading.length > 8 ? 'text-3xl md:text-4xl' : 'text-5xl md:text-6xl'
+            }`}>
               {card.reading}
             </h2>
           )}
